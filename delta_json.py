@@ -126,7 +126,7 @@ id_mm = interparticle_distance(x_coords, y_coords, iter_step_dr, sigma, pixelsiz
 delta = 3/(4*np.pi*((id_mm)/1.79)**3)
 #
 '''    Havnes Parameter  P  '''
-a = (1.3/2) *10**(-6) #micrometer particle radius
+a = (3.34/2) *10**(-6) #micrometer particle radius
 p = 100 #Pressure in Pascal
 I = 1   #Current in mA
 T_e = T_e_interpolation(p,I)
