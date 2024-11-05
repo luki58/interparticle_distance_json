@@ -56,7 +56,7 @@ def average_interparticle_distance(x_coords, y_coords, iter_step_dr, sigma, pixe
     return average_distance_in_mm
 
 # Main script
-data_dir = 'npy_data/VM2_AVI_230125_110058_30pa_t14'
+data_dir = 'npy_data/positions'
 #data_dir = 'npy_data/VM2_AVI_230125_104901_20pa_t13'
 #data_dir = 'npy_data/VM2_AVI_230125_111238_25pa_t13'
 numpy_arrays = load_numpy_arrays_from_folder(data_dir)
@@ -75,7 +75,7 @@ for array in numpy_arrays:
 
     pixelsize = 0.0147  # mm
     sigma = 2  # smooth-filter rdf signal with gauss to clear up main peak
-    iter_step_dr = .5  # from experience (accuracy and computational time taken into account)
+    iter_step_dr = 1  # from experience (accuracy and computational time taken into account)
 
     avg_distance = average_interparticle_distance(x_coords, y_coords, iter_step_dr, sigma, pixelsize)
     print(frame_list[image][:-4] + " of " + str(len(numpy_arrays)) + " with average distance = " + str(avg_distance))
