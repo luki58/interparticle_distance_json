@@ -27,28 +27,7 @@ import scipy.special as scsp
 from scipy.ndimage import gaussian_filter, gaussian_filter1d
 from scipy.constants import epsilon_0, k, pi, e
 import scienceplots
-
-### --- Te interpolation from Pustilnik (measured in absence of microparticles) --- ###
-
-def T_e_interpolation(x, I):
-    C = [7.13, 7.06, 6.98, 5.5]
-    D = [1.23, 0.75, 0.77, 1.59]
-    y_data = np.add(C,np.divide(D,I))
-    x_data = [20, 40, 60, 100]
-    x_fit = np.linspace(15,30,100)
-    coef = np.polyfit(x_data,y_data,3)
-    poly1d_fn = np.poly1d(coef)  # poly1d_fn is now a function which takes in x and returns an estimate for y
-    return poly1d_fn(x)
-
-def n_e_interpolation(x, I):
-    A = [1.92, 2.75, 3.15, 4.01]
-    B = [-0.38, -0.42, -0.34, 0.047]
-    y_data = np.add(np.multiply(A,I),np.multiply(B,I**2))
-    x_data = [20, 40, 60, 100]
-    x_fit = np.linspace(15,30,100)
-    coef = np.polyfit(x_data,y_data,1)
-    poly1d_fn = np.poly1d(coef)  # poly1d_fn is now a function which takes in x and returns an estimate for y
-    return poly1d_fn(x)
+from scipy.signal import find_peaks
 
 # Function to load numpy arrays from a folder
 def load_numpy_arrays_from_folder(folder_path):
@@ -60,28 +39,40 @@ def load_numpy_arrays_from_folder(folder_path):
             numpy_arrays.append(numpy_array)
     return numpy_arrays
 
-# Function to compute interparticle distance
 def interparticle_distance(x_coords, y_coords, iter_step_dr, sigma, pixelsize):
     cart_coords = np.column_stack((x_coords, y_coords))
     g_r3, radii3 = rdf(cart_coords, dr=iter_step_dr, parallel=False)
     g_r3 = gaussian_filter1d(g_r3, sigma=sigma)
-    fig,ax = plt.subplots(dpi=600)
+    
+    fig, ax = plt.subplots(dpi=150)
     ax.plot(radii3, g_r3)
+    
+    # Finding peaks
+    peaks, _ = find_peaks(g_r3, height=None)  # You can adjust the `height`, `threshold`, `distance`, and `prominence` parameters as needed
+    
+    # Highlight peaks
+    ax.plot(radii3[peaks], g_r3[peaks], "x")
+    
     plt.xlabel('x[Pixel]')
     plt.ylabel('g_r')
-    peak = np.where(g_r3 == np.amax(g_r3))
-    if len(peak[0]) != 0:
-        result_in_px = radii3[peak[0]][0]
-        result_in_mm = radii3[peak[0]][0] * pixelsize
+    plt.show()
+    
+    # If you want to use the first peak or the highest peak:
+    if peaks.size > 0:
+        highest_peak = peaks[np.argmax(g_r3[peaks])]  # This finds the index of the highest peak
+        average_distance_in_px = radii3[highest_peak]
+        average_distance_in_mum = average_distance_in_px * pixelsize
+        return average_distance_in_mum
     else:
-        result_in_mm = result_in_px = 0
-    return result_in_px
+        return None  # In case no peaks are found
 
 # Main script
-data_dir = 'npy_data/VM2_AVI_230125_104901_20pa_t13'
+data_dir = 'npy_data/Argon'
 numpy_arrays = load_numpy_arrays_from_folder(data_dir)
+frame_list = os.listdir(data_dir)
 
 results = []
+image = 1
 
 for array in numpy_arrays:
     x_coords = array[:, 0]
@@ -91,17 +82,20 @@ for array in numpy_arrays:
     ax.scatter(x_coords, y_coords, marker='o', color='#000000', linewidth=1, s=3)
     plt.show()
 
-    pixelsize = 0.0147  # mm
-    sigma = 2  # smooth-filter rdf signal with gauss to clear up main peak
+    pixelsize = 0.0000118  # m
+    sigma = 1  # smooth-filter rdf signal with gauss to clear up main peak
     iter_step_dr = 0.95  # from experience (accuracy and computational time taken into account)
 
-    id_mm = interparticle_distance(x_coords, y_coords, iter_step_dr, sigma, pixelsize) * pixelsize
-    delta = 3 / (4 * np.pi * ((id_mm) / 1.79)**3)
+    id_mum = interparticle_distance(x_coords, y_coords, iter_step_dr, sigma, pixelsize)
+    #delta = 3 / (4 * np.pi * ((id_mm * 1000) / 1.79)**3)
     
-    results.append({
-        'delta': delta
-        })
+    nd = (id_mum) ** (-3)
+    
+    frame_description = frame_list[image].rstrip('.json')
 
+    results.append({frame_description: nd})
+    image += 1
+    
 # Save results to a JSON file
 results_filename = os.path.basename(data_dir.rstrip('/')) + '_results.json'
 results_filepath = os.path.join(data_dir, results_filename)
